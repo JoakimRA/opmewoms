@@ -220,6 +220,9 @@ public:
     Matrix& matrix()
     { return *matrix_; }
 
+    Matrix& matrixA()
+    { return *matrixA_; }
+
     /*!
      * \brief Return constant reference to global residual vector.
      */
@@ -285,6 +288,7 @@ private:
 
         // allocate raw matrix
         matrix_ = new Matrix(numAllDof, numAllDof, Matrix::random);
+        matrixA_ = new Matrix(numAllDof, numAllDof, Matrix::random);
 
         Stencil stencil(gridView_(), model_().dofMapper() );
 
@@ -316,9 +320,12 @@ private:
             model.auxiliaryModule(auxModIdx)->addNeighbors(neighbors);
 
         // allocate space for the rows of the matrix
-        for (unsigned dofIdx = 0; dofIdx < numAllDof; ++ dofIdx)
+        for (unsigned dofIdx = 0; dofIdx < numAllDof; ++ dofIdx){
             matrix_->setrowsize(dofIdx, neighbors[dofIdx].size());
+            matrixA_->setrowsize(dofIdx, neighbors[dofIdx].size());
+        }
         matrix_->endrowsizes();
+        matrixA_->endrowsizes();
 
         // fill the rows with indices. each degree of freedom talks to
         // all of its neighbors. (it also talks to itself since
@@ -326,10 +333,13 @@ private:
         for (unsigned dofIdx = 0; dofIdx < numAllDof; ++ dofIdx) {
             typename NeighborSet::iterator nIt = neighbors[dofIdx].begin();
             typename NeighborSet::iterator nEndIt = neighbors[dofIdx].end();
-            for (; nIt != nEndIt; ++nIt)
+            for (; nIt != nEndIt; ++nIt){
                 matrix_->addindex(dofIdx, *nIt);
+                matrixA_->addindex(dofIdx, *nIt);
+            }
         }
         matrix_->endindices();
+        matrixA_->endindices();
     }
 
     // reset the global linear system of equations.
@@ -537,6 +547,7 @@ private:
     // the jacobian matrix
     Matrix *matrix_;
     // the right-hand side
+    Matrix *matrixA_;
     GlobalEqVector residual_;
 
 

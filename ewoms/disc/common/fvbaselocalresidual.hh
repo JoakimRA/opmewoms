@@ -143,7 +143,16 @@ public:
      */
     void eval(const ElementContext& elemCtx)
     {
-        size_t numDof = elemCtx.numDof(/*timeIdx=*/0);
+        unsigned timeIdx = 0;
+        std::string wrtInitial = "";
+        std::ifstream inputFile;
+        inputFile.open("/home/joakimra/yesno.txt");
+        getline(inputFile, wrtInitial);
+        inputFile.close();
+        if (wrtInitial=="true"){
+            timeIdx = 1 ;
+        }
+        size_t numDof = elemCtx.numDof(timeIdx);
         internalResidual_.resize(numDof);
         asImp_().eval(internalResidual_, elemCtx);
     }
@@ -158,26 +167,36 @@ public:
     void eval(LocalEvalBlockVector& residual,
               const ElementContext& elemCtx) const
     {
-        assert(residual.size() == elemCtx.numDof(/*timeIdx=*/0));
+
+        unsigned timeIdx = 0;
+        std::string wrtInitial = "";
+        std::ifstream inputFile;
+        inputFile.open("/home/joakimra/yesno.txt");
+        getline(inputFile, wrtInitial);
+        inputFile.close();
+        if (wrtInitial=="true"){
+            timeIdx = 1 ;
+        }
+        assert(residual.size() == elemCtx.numDof(timeIdx));
 
         residual = 0.0;
 
         // evaluate the flux terms
-        asImp_().evalFluxes(residual, elemCtx, /*timeIdx=*/0);
+        asImp_().evalFluxes(residual, elemCtx, timeIdx);
 
         // evaluate the storage and the source terms
         asImp_().evalVolumeTerms_(residual, elemCtx);
 
         // evaluate the boundary conditions
-        asImp_().evalBoundary_(residual, elemCtx, /*timeIdx=*/0);
+        asImp_().evalBoundary_(residual, elemCtx, timeIdx);
 
         // make the residual volume specific (i.e., make it incorrect mass per cubic
         // meter instead of total mass)
-        size_t numDof = elemCtx.numDof(/*timeIdx=*/0);
+        size_t numDof = elemCtx.numDof(timeIdx);
         for (unsigned dofIdx=0; dofIdx < numDof; ++dofIdx) {
-            if (elemCtx.dofTotalVolume(dofIdx, /*timeIdx=*/0) > 0) {
+            if (elemCtx.dofTotalVolume(dofIdx, timeIdx) > 0) {
                 // interior DOF
-                Scalar dofVolume = elemCtx.dofTotalVolume(dofIdx, /*timeIdx=*/0);
+                Scalar dofVolume = elemCtx.dofTotalVolume(dofIdx, timeIdx);
 
                 assert(std::isfinite(dofVolume));
                 Opm::Valgrind::CheckDefined(dofVolume);
@@ -203,13 +222,24 @@ public:
                      const ElementContext& elemCtx,
                      unsigned timeIdx) const
     {
-        if (timeIdx == 0) {
+
+        //unsigned timeIdx = 0;
+        std::string wrtInitial = "";
+        std::ifstream inputFile;
+        inputFile.open("/home/joakimra/yesno.txt");
+        getline(inputFile, wrtInitial);
+        inputFile.close();
+        if (wrtInitial=="true"){
+            //timeIdx = 1 ;
+        }
+
+        if ((wrtInitial=="false" && timeIdx == 0) || (wrtInitial=="true" && timeIdx==1)) {
             // for the most current solution, the storage term depends on the current
             // primary variables
 
             // calculate the amount of conservation each quantity inside
             // all primary sub control volumes
-            size_t numPrimaryDof = elemCtx.numPrimaryDof(/*timeIdx=*/0);
+            size_t numPrimaryDof = elemCtx.numPrimaryDof(timeIdx);
             for (unsigned dofIdx=0; dofIdx < numPrimaryDof; dofIdx++) {
                 storage[dofIdx] = 0.0;
                 asImp_().computeStorage(storage[dofIdx], elemCtx, dofIdx, timeIdx);
@@ -237,8 +267,9 @@ public:
             else {
                 // calculate the amount of conservation each quantity inside
                 // all primary sub control volumes
+
                 Dune::FieldVector<Scalar, numEq> tmp;
-                size_t numPrimaryDof = elemCtx.numPrimaryDof(/*timeIdx=*/0);
+                size_t numPrimaryDof = elemCtx.numPrimaryDof(/*timeIdx=*/ wrtInitial=="true" ? 1 : 0);
                 for (unsigned dofIdx=0; dofIdx < numPrimaryDof; dofIdx++) {
                     tmp = 0.0;
                     asImp_().computeStorage(tmp,
@@ -456,13 +487,23 @@ protected:
         tmp = 0.0;
         tmp2 = 0.0;
 
+        unsigned timeIdx = 0;
+        std::string wrtInitial = "";
+        std::ifstream inputFile;
+        inputFile.open("/home/joakimra/yesno.txt");
+        getline(inputFile, wrtInitial);
+        inputFile.close();
+        if (wrtInitial=="true"){
+            timeIdx = 1 ;
+        }
+
         // evaluate the volumetric terms (storage + source terms)
-        size_t numPrimaryDof = elemCtx.numPrimaryDof(/*timeIdx=*/0);
+        size_t numPrimaryDof = elemCtx.numPrimaryDof(timeIdx);
         for (unsigned dofIdx=0; dofIdx < numPrimaryDof; dofIdx++) {
             Scalar extrusionFactor =
-                elemCtx.intensiveQuantities(dofIdx, /*timeIdx=*/0).extrusionFactor();
+                elemCtx.intensiveQuantities(dofIdx, timeIdx).extrusionFactor();
             Scalar scvVolume =
-               elemCtx.stencil(/*timeIdx=*/0).subControlVolume(dofIdx).volume() * extrusionFactor;
+               elemCtx.stencil(timeIdx).subControlVolume(dofIdx).volume() * extrusionFactor;
             Opm::Valgrind::CheckDefined(scvVolume);
 
             // mass balance within the element. this is the \f$\frac{m}{\partial t}\f$
@@ -473,12 +514,12 @@ protected:
             asImp_().computeStorage(tmp,
                                     elemCtx,
                                     dofIdx,
-                                    /*timeIdx=*/0);
+                                    timeIdx);
             Opm::Valgrind::CheckDefined(tmp);
 
             if (elemCtx.enableStorageCache()) {
                 const auto& model = elemCtx.model();
-                unsigned globalDofIdx = elemCtx.globalSpaceIndex(dofIdx, /*timeIdx=*/0);
+                unsigned globalDofIdx = elemCtx.globalSpaceIndex(dofIdx, timeIdx);
                 if (model.newtonMethod().numIterations() == 0 &&
                     !elemCtx.haveStashedIntensiveQuantities())
                 {
@@ -492,12 +533,12 @@ protected:
                         tmp2[eqIdx] = Toolbox::value(tmp[eqIdx]);
                     Opm::Valgrind::CheckDefined(tmp2);
 
-                    model.updateCachedStorage(globalDofIdx, /*timeIdx=*/1, tmp2);
+                    model.updateCachedStorage(globalDofIdx, timeIdx==0 ? 1 : 0, tmp2);
                 }
                 else {
                     // if the storage term is cached and we're not looking at the first
                     // iteration of the time step, we take the cached data.
-                    tmp2 = model.cachedStorage(globalDofIdx, /*timeIdx=*/1);
+                    tmp2 = model.cachedStorage(globalDofIdx, timeIdx==0 ? 1 : 0);
                     Opm::Valgrind::CheckDefined(tmp2);
                 }
             }
@@ -505,10 +546,17 @@ protected:
                 // if the mass storage at the beginning of the time step is not cached,
                 // we re-calculate it from scratch.
                 tmp2 = 0.0;
+
+
+                if (wrtInitial=="true"){
+
+                }
+                else{
                 asImp_().computeStorage(tmp2,
                                         elemCtx,
                                         dofIdx,
-                                        /*timeIdx=*/1);
+                                        timeIdx==0 ? 1 : 0);
+                }
                 Opm::Valgrind::CheckDefined(tmp2);
             }
 
@@ -522,7 +570,7 @@ protected:
             Opm::Valgrind::CheckDefined(residual[dofIdx]);
 
             // deal with the source term
-            asImp_().computeSource(sourceRate, elemCtx, dofIdx, /*timeIdx=*/0);
+            asImp_().computeSource(sourceRate, elemCtx, dofIdx, timeIdx);
             for (unsigned eqIdx = 0; eqIdx < numEq; ++eqIdx) {
                 sourceRate[eqIdx] *= scvVolume;
                 residual[dofIdx][eqIdx] -= sourceRate[eqIdx];

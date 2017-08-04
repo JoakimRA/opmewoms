@@ -88,6 +88,15 @@ public:
      */
     Evaluation makeEvaluation(unsigned varIdx, unsigned timeIdx) const
     {
+
+        std::string wrtInitial = "";
+        std::ifstream inputFile;
+        inputFile.open("/home/joakimra/yesno.txt");
+        getline(inputFile, wrtInitial);
+        inputFile.close();
+        if (wrtInitial=="true"){
+            timeIdx = timeIdx==0 ? 1 : 0 ;
+        }
         if (timeIdx == 0)
             return Toolbox::createVariable((*this)[varIdx], varIdx);
         else

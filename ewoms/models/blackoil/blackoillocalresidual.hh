@@ -167,7 +167,7 @@ public:
                      unsigned scvfIdx,
                      unsigned timeIdx) const
     {
-        assert(timeIdx == 0);
+        //assert(timeIdx == 0);
 
         flux = 0.0;
 

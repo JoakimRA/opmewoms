@@ -201,7 +201,7 @@ SET_BOOL_PROP(EclBaseProblem, EnableEclSummaryOutput, true);
 SET_BOOL_PROP(EclBaseProblem, EnableIntensiveQuantityCache, true);
 
 // the cache for the storage term can also be used and also yields a decent speedup
-SET_BOOL_PROP(EclBaseProblem, EnableStorageCache, true);
+SET_BOOL_PROP(EclBaseProblem, EnableStorageCache, false);
 
 // Use the "velocity module" which uses the Eclipse "NEWTRAN" transmissibilities
 SET_TYPE_PROP(EclBaseProblem, FluxModule, Ewoms::EclTransFluxModule<TypeTag>);
@@ -264,6 +264,7 @@ class EclProblem : public GET_PROP_TYPE(TypeTag, BaseProblem)
     typedef typename GET_PROP_TYPE(TypeTag, RateVector) RateVector;
     typedef typename GET_PROP_TYPE(TypeTag, BoundaryRateVector) BoundaryRateVector;
     typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
+    typedef typename GET_PROP_TYPE(TypeTag, SolutionVector) SolutionVector;
     typedef typename GridView::template Codim<0>::Entity Element;
     typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
     typedef typename GET_PROP(TypeTag, MaterialLaw)::EclMaterialLawManager EclMaterialLawManager;
@@ -417,6 +418,7 @@ public:
      */
     void beginEpisode(bool isOnRestart = false)
     {
+        initialSol_ = this->simulator().model().solution(/*timeIdx=*/0);
         // Proceed to the next report step
         Simulator& simulator = this->simulator();
         auto& eclState = this->simulator().gridManager().eclState();
@@ -557,6 +559,45 @@ public:
             simulator.setFinished(true);
             return;
         }
+
+
+        const auto& A_changed = this->simulator().model().linearizer().matrix();
+        const auto& A = this->simulator().model().linearizer().matrixA();
+
+        //std::cout << " ----------------------------------------------------" << std::endl<< std::endl<< std::endl;
+        //Dune::printmatrix(std::cout, A_changed, "A inserted well ", "row");
+        //std::cout << " ----------------------------------------------------" << std::endl<< std::endl<< std::endl;
+        //Dune::printmatrix(std::cout, A, "A", "row");
+
+
+        //
+        //updateState(dx,reservoir_state);
+        //wellModel().updateWellState(dxw, well_state);
+        //convertInput( iteration, reservoir_state, ebosSimulator_ );
+        //ebosSimulator_.model().invalidateIntensiveQuantitiesCache(/*timeIdx=*/0);
+
+
+
+        // Get the sensitivity w.r.t. the initial state
+        auto tmpSol = this->simulator().model().solution(/*timeIdx=*/0);
+        this->simulator().model().solution(/*timeIdx=*/0) = initialSol_;
+        this->simulator().model().linearizer().linearize();
+
+
+
+        //const auto& j1 = this->simulator().model().linearizer().matrix();
+        //Dune::printmatrix(std::cout, j1, "before", "row");
+        //this->simulator().model().invalidateIntensiveQuantitiesCache(/*timeIdx=*/0);
+        //this->simulator().model().linearizer().linearize();
+
+        //const auto& j2 = this->simulator().model().linearizer().matrix();
+        //Dune::printmatrix(std::cout, j2, "after", "row");
+
+
+        //this->simulator().model().solution(/*timeIdx=*/0) = tmpSol;
+
+
+
     }
 
     /*!
@@ -943,6 +984,7 @@ public:
      */
     void initialSolutionApplied()
     {
+        //initialSol_ = this->simulator().model().solution(/*timeIdx=*/0);
         if (!GET_PROP_VALUE(TypeTag, DisableWells)) {
             // initialize the wells. Note that this needs to be done after initializing the
             // intrinsic permeabilities and the after applying the initial solution because
@@ -1662,6 +1704,7 @@ private:
         pffDofData_.update(distFn);
     }
 
+    SolutionVector initialSol_;
     std::vector<Scalar> porosity_;
     std::vector<Scalar> elementCenterDepth_;
     EclTransmissibility<TypeTag> transmissibilities_;

@@ -223,6 +223,8 @@ public:
     Matrix& matrixA()
     { return *matrixA_; }
 
+
+
     /*!
      * \brief Return constant reference to global residual vector.
      */
@@ -231,6 +233,12 @@ public:
 
     GlobalEqVector& residual()
     { return residual_; }
+
+    const GlobalEqVector& constresidualA()
+    { return residualA_; }
+
+    GlobalEqVector& residualA()
+    { return residualA_; }
 
     /*!
      * \brief Returns the map of constraint degrees of freedom.
@@ -274,6 +282,9 @@ private:
         *matrix_ = 0;
         residual_.resize(model_().numTotalDof());
         residual_ = 0;
+
+        residualA_.resize(model_().numTotalDof());
+        residualA_ = 0;
 
         // create the per-thread context objects
         elementCtx_.resize(ThreadManager::maxThreads());
@@ -340,6 +351,7 @@ private:
         }
         matrix_->endindices();
         matrixA_->endindices();
+
     }
 
     // reset the global linear system of equations.
@@ -459,16 +471,26 @@ private:
         if (GET_PROP_VALUE(TypeTag, UseLinearizationLock))
             globalMatrixMutex_.lock();
 
-        size_t numPrimaryDof = elementCtx->numPrimaryDof(/*timeIdx=*/0);
+        unsigned timeIdx = 0;
+        std::string wrtInitial = "";
+        std::ifstream inputFile;
+        inputFile.open("/home/joakimra/yesno.txt");
+        getline(inputFile, wrtInitial);
+        inputFile.close();
+        if (wrtInitial=="true"){
+            timeIdx = 1 ;
+        }
+
+        size_t numPrimaryDof = elementCtx->numPrimaryDof(timeIdx);
         for (unsigned primaryDofIdx = 0; primaryDofIdx < numPrimaryDof; ++ primaryDofIdx) {
-            unsigned globI = elementCtx->globalSpaceIndex(/*spaceIdx=*/primaryDofIdx, /*timeIdx=*/0);
+            unsigned globI = elementCtx->globalSpaceIndex(/*spaceIdx=*/primaryDofIdx, timeIdx);
 
             // update the right hand side
             residual_[globI] += localLinearizer.residual(primaryDofIdx);
 
             // update the global Jacobian matrix
-            for (unsigned dofIdx = 0; dofIdx < elementCtx->numDof(/*timeIdx=*/0); ++ dofIdx) {
-                unsigned globJ = elementCtx->globalSpaceIndex(/*spaceIdx=*/dofIdx, /*timeIdx=*/0);
+            for (unsigned dofIdx = 0; dofIdx < elementCtx->numDof(timeIdx); ++ dofIdx) {
+                unsigned globJ = elementCtx->globalSpaceIndex(/*spaceIdx=*/dofIdx, timeIdx);
 
                 (*matrix_)[globJ][globI] += localLinearizer.jacobian(dofIdx, primaryDofIdx);
             }
@@ -546,9 +568,11 @@ private:
 
     // the jacobian matrix
     Matrix *matrix_;
-    // the right-hand side
     Matrix *matrixA_;
+    // the right-hand side
     GlobalEqVector residual_;
+    GlobalEqVector residualA_;
+
 
 
     OmpMutex globalMatrixMutex_;

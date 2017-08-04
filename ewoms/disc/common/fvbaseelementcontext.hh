@@ -39,6 +39,9 @@
 #include <dune/common/fvector.hh>
 
 #include <vector>
+#include <string>
+#include <iostream>
+#include <fstream>
 
 namespace Ewoms {
 
@@ -195,10 +198,15 @@ public:
         stashedDofIdx_ = -1;
 
         if (!enableStorageCache_) {
+
+
+
             // if the storage cache is disabled, we need to calculate the storage term
             // from scratch, i.e. we need the intensive quantities of all of the history.
-            for (unsigned timeIdx = 0; timeIdx < timeDiscHistorySize; ++ timeIdx)
+            for (unsigned timeIdx = 0; timeIdx < timeDiscHistorySize; ++ timeIdx){
                 updateIntensiveQuantities(timeIdx);
+
+            }
         }
         else
             // if the storage cache is enabled, we only need to recalculate the storage
@@ -254,6 +262,7 @@ public:
      */
     void updateAllExtensiveQuantities()
     {
+        updateExtensiveQuantities(/*timeIdx=*/1);
         updateExtensiveQuantities(/*timeIdx=*/0);
     }
 

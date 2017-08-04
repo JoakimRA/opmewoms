@@ -89,7 +89,7 @@ SET_BOOL_PROP(DiscreteFractureModel, UseTwoPointGradients, true);
 // intensive quantities of the other intensive quantities of the same of the same degree
 // of freedom. This is because the fracture properties (volume, permeability, etc) are
 // specific for each...
-SET_BOOL_PROP(DiscreteFractureModel, EnableIntensiveQuantityCache, false);
+SET_BOOL_PROP(DiscreteFractureModel, EnableIntensiveQuantityCache, true);
 } // namespace Properties
 
 /*!

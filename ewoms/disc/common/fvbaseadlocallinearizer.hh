@@ -179,16 +179,26 @@ public:
     void linearize(ElementContext& elemCtx)
     {
         // update the weights of the primary variables for the context
-        model_().updatePVWeights(elemCtx);
+        model_().updatePVWeights(elemCtx); // Does absolutely nothing
 
-        resize_(elemCtx);
-        reset_(elemCtx);
+        resize_(elemCtx); // sets the size of the local jacobian and the residual
+        reset_(elemCtx); // sets both to 0.
 
         // calculate the local residual
         localResidual_.eval(elemCtx);
 
+        unsigned timeIdx = 0;
+        std::string wrtInitial = "";
+        std::ifstream inputFile;
+        inputFile.open("/home/joakimra/yesno.txt");
+        getline(inputFile, wrtInitial);
+        inputFile.close();
+        if (wrtInitial=="true"){
+            timeIdx = 1 ;
+        }
+
         // calculate the local jacobian matrix
-        size_t numPrimaryDof = elemCtx.numPrimaryDof(/*timeIdx=*/0);
+        size_t numPrimaryDof = elemCtx.numPrimaryDof(timeIdx);
         for (unsigned dofIdx = 0; dofIdx < numPrimaryDof; dofIdx++) {
             // convert the local Jacobian matrix and the right hand side from the data
             // structures used by the automatic differentiation code to the conventional

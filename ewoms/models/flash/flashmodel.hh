@@ -99,7 +99,7 @@ SET_TYPE_PROP(FlashModel, Indices, Ewoms::FlashIndices<TypeTag, /*PVIdx=*/0>);
 
 // The updates of intensive quantities tend to be _very_ expensive for this
 // model, so let's try to minimize the number of required ones
-SET_BOOL_PROP(FlashModel, EnableIntensiveQuantityCache, true);
+SET_BOOL_PROP(FlashModel, EnableIntensiveQuantityCache, false);
 
 // since thermodynamic hints are basically free if the cache for intensive quantities is
 // enabled, and this model usually shows quite a performance improvment if they are
